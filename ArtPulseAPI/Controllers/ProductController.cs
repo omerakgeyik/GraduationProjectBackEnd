@@ -2,6 +2,7 @@
 using ArtPulseAPI.DTO;
 using ArtPulseAPI.Data;
 using ArtPulseAPI.Models;
+using Microsoft.EntityFrameworkCore;
 namespace ArtPulseAPI.Controllers
 {
     [Route("api/[controller]")]
@@ -15,117 +16,254 @@ namespace ArtPulseAPI.Controllers
             _dataContext = dataContext;
         }
 
-        [HttpGet("/priceAsc/{takeCount}")]
-        public IActionResult GetProductsPriceAsc(int takeCount)
+        //Get all Products
+        [HttpGet("AllProducts")]
+        public async Task<IActionResult> GetAllProducts()
         {
-            Product[] retreivedProducts = _dataContext.Products.OrderBy(p => p.Cost).Take(takeCount).ToArray();
-            ProductDTO[] productDtoArray = new ProductDTO[retreivedProducts.Length];
-            for (int i = 0; i < retreivedProducts.Length; i++)
+            try
             {
-                Product product = retreivedProducts[i];
-                productDtoArray[i] = new ProductDTO()
+                var products = await _dataContext.Products.ToListAsync();
+
+                if (products.Count == 0)
                 {
-                    SellerId = product.Seller.Id,
-                    Amount = product.Amount,
-                    Category = "placeholder category",
-                    Cost = product.Cost,
-                    Details = product.Details,
-                    Id = product.Id,
-                    Name = product.Name,
-                    RatingScaledBy10 = product.RatingScaledBy10
-                };
+                    return NotFound("No products found.");
+                }
+
+                var productDTOs = products.Select(p => ProductToDTO(p)).ToList();
+
+                return Ok(productDTOs);
             }
-            return Ok(productDtoArray);
-        }
-        [HttpGet("/priceDesc/{takeCount}")]
-        public IActionResult GetProductsPriceDesc(int takeCount)
-        {
-            Product[] retreivedProducts = _dataContext.Products.OrderByDescending(p => p.Cost).Take(takeCount).ToArray();
-            ProductDTO[] productDtoArray = new ProductDTO[retreivedProducts.Length];
-            for (int i = 0; i < retreivedProducts.Length; i++)
+            catch (Exception ex)
             {
-                Product product = retreivedProducts[i];
-                productDtoArray[i] = new ProductDTO()
-                {
-                    SellerId = product.Seller.Id,
-                    Amount = product.Amount,
-                    Category = "placeholder category",
-                    Cost = product.Cost,
-                    Details = product.Details,
-                    Id = product.Id,
-                    Name = product.Name,
-                    RatingScaledBy10 = product.RatingScaledBy10
-                };
+                return StatusCode(500, $"Internal server error: {ex.Message}");
             }
-            return Ok(productDtoArray);
         }
 
-        [HttpGet("/{takeCount}/{category}")]
-        public IActionResult GetBestProducts(int takeCount, Category category)
+        //Get product by id
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetProductByID(int id)
         {
-            Product[] retreivedProducts = _dataContext.Products.Where(p=> p.Category == category).OrderByDescending(p => p.RatingScaledBy10).Take(takeCount).ToArray();
-            ProductDTO[] productDtoArray = new ProductDTO[retreivedProducts.Length];
-            for (int i = 0; i < retreivedProducts.Length; i++)
+            try
             {
-                Product product = retreivedProducts[i];
-                productDtoArray[i] = new ProductDTO()
+                var product = await _dataContext.Products.FindAsync(id);
+
+                if (product == null)
                 {
-                    SellerId = product.Seller.Id,
-                    Amount = product.Amount,
-                    Category = "placeholder category",
-                    Cost = product.Cost,
-                    Details = product.Details,
-                    Id = product.Id,
-                    Name = product.Name,
-                    RatingScaledBy10 = product.RatingScaledBy10
-                };
+                    return NotFound("Product not found.");
+                }
+
+                var productDTO = await ProductToDTO(product);
+
+                return Ok(productDTO);
             }
-            return Ok(productDtoArray);
-        }
-        [HttpGet("/{takeCount}")]
-        public IActionResult GetBestProducts(int takeCount)
-        {
-            Product[] retreivedProducts = _dataContext.Products.OrderByDescending(p => p.RatingScaledBy10).Take(takeCount).ToArray();
-            ProductDTO[] productDtoArray = new ProductDTO[retreivedProducts.Length];
-            for(int i = 0; i < retreivedProducts.Length; i++)
+            catch (Exception ex)
             {
-                Product product = retreivedProducts[i];
-                productDtoArray[i] = new ProductDTO()
-                {
-                    SellerId = product.Seller.Id,
-                    Amount = product.Amount,
-                    Category = "placeholder category",
-                    Cost = product.Cost,
-                    Details = product.Details,
-                    Id = product.Id,
-                    Name = product.Name,
-                    RatingScaledBy10 = product.RatingScaledBy10
-                };
+                return StatusCode(500, $"Internal server error: {ex.Message}");
             }
-            return Ok(productDtoArray);
         }
 
-        [HttpGet]
-        public IActionResult GetProducts()
+        //Add product
+        [HttpPost("AddProduct")]
+        public async Task<IActionResult> AddProduct(ProductDTO productDTO)
         {
-            Product[] products = _dataContext.Products.ToArray();
-            ProductDTO[] productDTOArray = new ProductDTO[products.Length];
-            for (int i = 0; i < products.Length; i++)
+            try
             {
-                Product product = products[i];
-                productDTOArray[i] = new ProductDTO()
+                if (!ModelState.IsValid)
                 {
-                    SellerId = product.Seller.Id,
-                    Amount = product.Amount,
-                    Category = "placeholder category",
-                    Cost = product.Cost,
-                    Details = product.Details,
-                    Id = product.Id,
-                    Name = product.Name,
-                    RatingScaledBy10 = product.RatingScaledBy10
+                    return BadRequest(ModelState);
+                }
+
+                var seller = await _dataContext.Sellers.FindAsync(productDTO.SellerId);
+
+                if (seller == null)
+                {
+                    return BadRequest("Seller not found.");
+                }
+
+                var product = new Product
+                {
+                    Amount = productDTO.Amount,
+                    RatingScaledBy10 = productDTO.RatingScaledBy10,
+                    Category = (Category)Enum.Parse(typeof(Category), productDTO.Category),
+                    Cost = productDTO.Cost,
+                    Name = productDTO.Name,
+                    Details = productDTO.Details,
+                    Seller = seller
                 };
+
+                _dataContext.Products.Add(product);
+                await _dataContext.SaveChangesAsync();
+
+                return Ok("Product added successfully.");
             }
-            return Ok(productDTOArray);
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        //Update product
+        [HttpPut("UpdateProduct/{id}")]
+        public async Task<IActionResult> UpdateProduct(int id, ProductDTO productDTO)
+        {
+            try
+            {
+                if (id != productDTO.Id)
+                {
+                    return BadRequest("Product ID mismatch.");
+                }
+
+                var product = await _dataContext.Products.FindAsync(id);
+
+                if (product == null)
+                {
+                    return NotFound("Product not found.");
+                }
+
+                var seller = await _dataContext.Sellers.FindAsync(productDTO.SellerId);
+
+                if (seller == null)
+                {
+                    return BadRequest("Seller not found.");
+                }
+
+                product.Amount = productDTO.Amount;
+                product.RatingScaledBy10 = productDTO.RatingScaledBy10;
+                product.Category = (Category)Enum.Parse(typeof(Category), productDTO.Category);
+                product.Cost = productDTO.Cost;
+                product.Name = productDTO.Name;
+                product.Details = productDTO.Details;
+                product.Seller = seller;
+
+                await _dataContext.SaveChangesAsync();
+
+                return Ok("Product updated successfully.");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        //Delete product
+        [HttpDelete("DeleteProduct/{id}")]
+        public async Task<IActionResult> DeleteProduct(int id)
+        {
+            try
+            {
+                var product = await _dataContext.Products.FindAsync(id);
+
+                if (product == null)
+                {
+                    return NotFound("Product not found.");
+                }
+
+                _dataContext.Products.Remove(product);
+                await _dataContext.SaveChangesAsync();
+
+                return Ok("Product deleted successfully.");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        //Get Products by Ascending order
+        [HttpGet("ProductsPriceAsc")]
+        public async Task<IActionResult> GetProductsPriceAsc()
+        {
+            try
+            {
+                var products = await _dataContext.Products
+                    .OrderBy(p => p.Cost)
+                    .ToListAsync();
+
+                if (products.Count == 0)
+                {
+                    return NotFound("No products found.");
+                }
+
+                var productDTOs = products.Select(p => ProductToDTO(p)).ToList();
+
+                return Ok(productDTOs);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        //Get Products by Descanding order
+        [HttpGet("ProductsPriceDesc")]
+        public async Task<IActionResult> GetProductsPriceDesc()
+        {
+            try
+            {
+                var products = await _dataContext.Products
+                    .OrderByDescending(p => p.Cost)
+                    .ToListAsync();
+
+                if (products.Count == 0)
+                {
+                    return NotFound("No products found.");
+                }
+
+                var productDTOs = products.Select(p => ProductToDTO(p)).ToList();
+
+                return Ok(productDTOs);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        //Get top 10 products
+        [HttpGet("BestProducts")]
+        public async Task<IActionResult> GetBestProducts()
+        {
+            try
+            {
+                var bestProducts = await _dataContext.Products
+                    .OrderByDescending(p => p.RatingScaledBy10)
+                    .Take(10)
+                    .Select(p => ProductToDTO(p))
+                    .ToListAsync();
+
+                if (bestProducts.Count == 0)
+                {
+                    return NotFound("No products found.");
+                }
+
+                return Ok(bestProducts);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        private async Task<IActionResult> ProductToDTO(Product product)
+        {
+            if (product == null)
+            {
+                return NotFound("Product not found.");
+            }
+
+            var productDTO = new ProductDTO
+            {
+                Id = product.Id,
+                Amount = product.Amount,
+                RatingScaledBy10 = product.RatingScaledBy10,
+                Category = Enum.GetName(typeof(Category), product.Category), // Convert enum to string
+                Cost = product.Cost,
+                Name = product.Name,
+                Details = product.Details,
+                SellerId = product.Seller.Id  // Assuming Seller has an Id property
+            };
+
+            return Ok(productDTO);
         }
     }
 }
