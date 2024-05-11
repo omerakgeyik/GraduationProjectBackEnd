@@ -17,7 +17,7 @@ namespace ArtPulseAPI.Controllers
         }
 
         //Get all Products
-        [HttpGet("AllProducts")]
+        [HttpGet("allProducts")]
         public async Task<IActionResult> GetAllProducts()
         {
             try

@@ -2,15 +2,6 @@
 # This .gitignore file was automatically created by Microsoft(R) Visual Studio.
 ################################################################################
 
-/.vs/GraduationProjectBackEnd/v17/DocumentLayout.json
-/.vs/ArtPulseAPI/FileContentIndex
-/.vs/GraduationProjectBackEnd/v17/.wsuo
-/ArtPulseAPI/obj/project.nuget.cache
-/ArtPulseAPI/obj/project.assets.json
-/ArtPulseAPI/obj/ArtPulseAPI.csproj.nuget.g.props
-/ArtPulseAPI/obj/ArtPulseAPI.csproj.nuget.dgspec.json
-/ArtPulseAPI/obj/Debug/net8.0/ArtPulseAPI.AssemblyInfo.cs
-/ArtPulseAPI/obj/Debug/net8.0/ArtPulseAPI.AssemblyInfoInputs.cache
-/ArtPulseAPI/obj/Debug/net8.0/ArtPulseAPI.GeneratedMSBuildEditorConfig.editorconfig
-/ArtPulseAPI/obj/Debug/net8.0/ArtPulseAPI.csproj.AssemblyReference.cache
-/ArtPulseAPI/obj/Debug/net8.0/ArtPulseAPI.assets.cache
+/.vs
+/GraduationProjectBackEnd/.vs/ArtPulseAPI
+/GraduationProjectBackEnd/ArtPulseAPI/obj
